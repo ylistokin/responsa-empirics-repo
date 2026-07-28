@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trends in Responsa from the 7th Century to the Present</title>
+<style>
+  :root {
+    --ink: #1c1c1c;
+    --muted: #5b5b5b;
+    --rule: #dcd6c9;
+    --paper: #fbf9f4;
+    --accent: #7a2e2e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 0.75rem; line-height: 1.3; }
+  .authors { font-size: 1.05rem; color: var(--muted); margin: 0 0 0.25rem; }
+  .venue { font-size: 0.95rem; color: var(--accent); font-style: italic; }
+  h2 {
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.4rem;
+    margin-top: 2.75rem;
+  }
+  p { font-size: 1.02rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure img { max-width: 100%; border: 1px solid var(--rule); }
+  figcaption { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+  .findings li { margin-bottom: 0.6rem; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    padding: 1.1rem 1.2rem;
+    border-radius: 4px;
+  }
+  .card h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+  .card p { font-size: 0.92rem; color: var(--muted); margin: 0 0 0.6rem; }
+  .card a { font-size: 0.9rem; }
+  a { color: var(--accent); }
+  code, pre {
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 0.85rem;
+    background: #f1ede2;
+    border-radius: 3px;
+  }
+  pre { padding: 1rem; overflow-x: auto; border: 1px solid var(--rule); }
+  code { padding: 0.1rem 0.3rem; }
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Trends in Responsa from the 7th Century to the Present:<br>An Empirical Analysis</h1>
+    <p class="authors">Yair Listokin &middot; Tamara Morsel-Eisenberg &middot; Jonathan Schler &middot; Roded Sharan</p>
+    <p class="venue">AJS Review (forthcoming)</p>
+  </header>
+
+  <section>
+    <h2>Abstract</h2>
+    <p>
+      Responsa form a legal tradition spanning at least 1,300 years, unmatched in its
+      continuity and global reach. We present the first large-scale empirical analysis
+      of over 130,000 responsa from the Bar-Ilan Responsa Project, one of the world's
+      largest digital repositories of Jewish legal texts. We confirm longstanding
+      scholarly claims that responsa have generally increased in length over time and
+      vary across regions. We also uncover novel patterns: a striking contraction in
+      responsa activity in the late fifteenth century, supporting the traditional
+      division of responsa between Rishonim ("Early Authorities") and Acharonim
+      ("Later Authorities"); a sharp rise and fall in responsa length during the early
+      modern period; and the surprising absence of length differentials between
+      Eastern European Rishonim and their contemporaries elsewhere. These findings
+      shed light on how halakha adapts to historical, technological, and
+      institutional change.
+    </p>
+  </section>
+
+  <section>
+    <h2>Figures</h2>
+    <figure>
+      <img src="assets/figure1.png" alt="Figure 1: Responsa density and smoothed median word length over time">
+      <figcaption>Figure 1. Responsa density and smoothed median word length, ca. 700 CE&ndash;present.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/figure2.png" alt="Figure 2: Share of responsa by region for each half-century">
+      <figcaption>Figure 2. Share of responsa by region for each half-century, 700&ndash;2010.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Key findings</h2>
+    <ul class="findings">
+      <li><strong>A gap, not just a turning point.</strong> Responsa activity contracts sharply
+        in the late 15th century, giving empirical grounding to the traditional
+        Rishonim/Acharonim divide.</li>
+      <li><strong>Length was flat for longer than assumed.</strong> Median responsa length
+        stays roughly constant from the Geonic era through most of the Rishonim
+        period, only beginning to rise around 1300.</li>
+      <li><strong>A 16th&ndash;17th century spike.</strong> Median length rises dramatically
+        and then falls, settling into a new, higher steady state &mdash; an anomaly not
+        previously emphasized.</li>
+      <li><strong>No Ashkenazi or Eastern European length premium.</strong> Contrary to
+        received wisdom, responsa from Western European Rishonim and Eastern European
+        early Acharonim are not reliably longer than contemporaneous responsa
+        elsewhere.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Reproduce the results</h2>
+    <p>All data (metadata only &mdash; no full responsa text) and analysis code are in
+      this repository.</p>
+    <pre>pip install -r requirements.txt
+
+python scripts/01_build_dataset.py
+python scripts/02_summary_statistics.py
+python scripts/03_figures.py
+python scripts/04_regressions.py</pre>
+    <div class="cards">
+      <div class="card">
+        <h3>Code &amp; data</h3>
+        <p>Full pipeline, from raw Bar-Ilan metadata to every figure and table.</p>
+        <a href="../">Browse the repository &rarr;</a>
+      </div>
+      <div class="card">
+        <h3>Reproducibility notes</h3>
+        <p>What reproduces exactly, and two small corrections found while
+          rebuilding the pipeline.</p>
+        <a href="../REPRODUCIBILITY_NOTES.md">Read the notes &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Code released under the MIT License. Derived data released under CC BY 4.0.
+      Source responsa metadata from the Bar-Ilan Responsa Project (Version 32),
+      used under its own terms &mdash; see DATA_LICENSE.md.</p>
+  </footer>
+
+</div>
+</body>
+</html>
