@@ -14,15 +14,38 @@ Output (data/processed/):
                                      year-annotated dataset used to build
                                      Figures 1-2 and Tables 1-3.
 
-This script is a direct, cleaned-up port of `Summary Statistics.ipynb`,
-adapted to run locally (the original ran on Google Colab against files on
-Google Drive).
+This script started as a direct, cleaned-up port of the authors' original
+`Summary Statistics.ipynb` (which ran on Google Colab against files on
+Google Drive), adapted to run locally against files in this folder.
+A Colab-notebook version of this same step is in notebooks/01_build_dataset.ipynb.
+
+DATING METHOD (`interpolated_year`): we interpolate as follows. The first
+responsum in any volume by an author is assumed to have been written
+MIN_AGE (30) years after the author's birth year. The last responsum in
+any volume is assumed to be written in the author's year of death. Since
+volumes are often arranged by topic rather than chronologically, every
+volume by a single author is interpolated by this same rule independently
+-- we do NOT assume that some volumes were written earlier than other
+volumes by the same author (i.e. volumes are not chained/sequenced; each
+one spans the full [birth+30, death] range on its own). When the year of
+death is missing, we assume the author dies at age 60.
+
+Implementation note: "first" and "last" are taken as the 0th and (N-1)th
+responsum within (author, volume) by the order they appear in the raw
+data (N = number of responsa in that volume) -- i.e. responsum i of N is
+placed at birth+30 + (i/(N-1)) * (death - birth - 30). A volume with only
+a single responsum has no distinct first/last, so it is placed at the
+midpoint of [birth+30, death].
+
+Run this script from the Lengths/ folder:
+    python scripts/01_build_dataset.py
 """
 import numpy as np
 import pandas as pd
 
 RAW = "data/raw"
 OUT = "data/processed"
+MIN_AGE = 30  # first responsum in a volume assumed written this many years after birth
 
 # ---------------------------------------------------------------------------
 # 1. Load and concatenate the two raw metadata files
@@ -127,11 +150,13 @@ def fill_missing(row):
 df = df.apply(fill_missing, axis=1)
 
 # ---------------------------------------------------------------------------
-# 3. Interpolate a year of authorship for each responsum
-#    (evenly distributed across [birth+30, death] by order within the book;
-#    a 60-year lifespan is assumed if death_year is missing)
+# 3. Interpolate a year of authorship for each responsum.
+#    First responsum in a volume -> birth+MIN_AGE. Last responsum in a
+#    volume -> death. Each volume is interpolated independently (volumes
+#    are NOT chained/sequenced relative to one another). A 60-year
+#    lifespan is assumed if death_year is missing. See module docstring.
 # ---------------------------------------------------------------------------
-def interpolate_across_books(group):
+def assign_interpolated_year(group):
     birth = group["birth_year"].iloc[0]
     death = group["death_year"].iloc[0]
 
@@ -142,16 +167,20 @@ def interpolate_across_books(group):
     if pd.isna(death):
         death = birth + 60
 
-    start_year = birth + 30
+    start_year = birth + MIN_AGE
     end_year = death
 
-    max_by_book = group.groupby("book_name")["unit_index"].transform("max")
-    group["relative_position"] = group["unit_index"] / max_by_book
-    group["interpolated_year"] = start_year + group["relative_position"] * (end_year - start_year)
+    # 0-based position within (author, book), so the first responsum in a
+    # volume gets relative_position 0 and the last gets exactly 1.
+    idx0 = group.groupby("book_name").cumcount()
+    book_size = group.groupby("book_name")["book_name"].transform("size")
+    relative_position = np.where(book_size > 1, idx0 / (book_size - 1).clip(lower=1), 0.5)
+
+    group["interpolated_year"] = start_year + relative_position * (end_year - start_year)
     return group
 
 
-df = df.groupby("author_name", group_keys=False).apply(interpolate_across_books)
+df = df.groupby("author_name", group_keys=False).apply(assign_interpolated_year)
 df["year"] = df["interpolated_year"]
 df["age_at_death"] = df["death_year"] - df["birth_year"]
 
@@ -192,14 +221,19 @@ region_map = {
 }
 
 
-def map_region(country):
+def map_region(row):
+    country = row["country"]
     for region, countries in region_map.items():
         if country in countries:
             return region
+    if pd.isna(country) and row["source"] == "dataset_2":
+        # Geonim-era authors have no country recorded in geonim_len_stats.xlsx;
+        # the Geonim were centered in Babylonia (modern Iraq).
+        return "West Asia (ex Israel)"
     return "Other"
 
 
-df_filtered["region"] = df_filtered["country"].apply(map_region)
+df_filtered["region"] = df_filtered.apply(map_region, axis=1)
 
 # ---------------------------------------------------------------------------
 # 6. Save
