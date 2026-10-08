@@ -243,8 +243,27 @@ manual_fill = {
     "ר' משה שטרן": (1914, 'הונגריה, ארה"ב'),
     'ר\' ראובן ב"ר בצלאל הכהן רפפורט': (1750, "פולין"),
     "ר' אריה יהודה ליב תאומים": (1813, "הונגריה"),
-    'ר\' שלמה ב"ר יצחק לבית לוי': (1020, "צרפת"),
+    # CORRECTED (was (1020, "צרפת") in the authors' original hand-collected
+    # fill) -- audit flagged this as a metadata error: the responsa titled
+    # "שו"ת מהר"ש לבית הלוי" (5 book_name entries, 137 rows) are not an
+    # 11th-century Frenchman but R. Solomon b. Isaac ha-Levi of Salonika,
+    # 1581-1633 (confirmed against HebrewBooks.org's catalog entry for this
+    # author/title). The wrong date placed all 137 rows in the 1001-1200
+    # bin; corrected, they fall in the early-modern (Acharonim) period. See
+    # also manual_death_fill below, which sets this author's death_year
+    # (also previously missing) to the documented 1633 rather than the
+    # default birth+60 assumption.
+    'ר\' שלמה ב"ר יצחק לבית לוי': (1581, "יוון"),
     "ר' מאיר אריק": (1855, "פולין"),
+}
+
+# A handful of authors have a documented death year that should override
+# the birth+60 default used when death_year is missing (see
+# assign_interpolated_year below). Currently just the metadata correction
+# above -- kept as its own small dict rather than extending manual_fill's
+# tuple shape, to avoid touching the other ~45 entries.
+manual_death_fill = {
+    'ר\' שלמה ב"ר יצחק לבית לוי': 1633,
 }
 
 country_translation = {
@@ -265,6 +284,7 @@ country_translation = {
     "הונגריה, אנגליה": "Hungary",
     'הונגריה, ארה"ב': "Hungary",
     "צרפת": "France",
+    "יוון": "Greece",
 }
 
 for name in manual_fill:
@@ -277,6 +297,8 @@ def fill_missing(row):
         row["birth_year"] = manual_fill[row["author_name"]][0]
     if pd.isna(row["country"]) and row["author_name"] in manual_fill:
         row["country"] = manual_fill[row["author_name"]][1]
+    if pd.isna(row["death_year"]) and row["author_name"] in manual_death_fill:
+        row["death_year"] = manual_death_fill[row["author_name"]]
     return row
 
 
@@ -366,11 +388,116 @@ df["year"] = df["interpolated_year"]
 df["age_at_death"] = df["death_year"] - df["birth_year"]
 
 # ---------------------------------------------------------------------------
-# 4. Clean word_length; drop citation/footnote-only entries
-#    (observations whose book name marks them as a note/gloss, e.g. הערות)
+# 4. Clean word_length; drop non-responsa observations.
+#
+# This section implements the corpus-cleaning rules agreed by the author
+# team after a collaborator (Eli Eisenberg) flagged genre contamination in
+# the Geonim-era sample, followed by a full-corpus audit (Jonathan) and
+# discussion among coauthors. Every rule below is one of five agreed
+# points; row counts are asserted so the list can't silently drift from
+# the data. Two prior candidate exclusions were deliberately REJECTED and
+# are documented at the bottom of this section rather than silently
+# omitted.
+#
+#   (i)   Citations/footnotes: book_name marks the row as a note/gloss
+#         (e.g. הערות, הגהות) -- original filter, predates this audit.
+#   (ii)  Front matter / tables of contents -- corpus-wide structural
+#         artifact, not Geonic-specific: rows where an entire preface or
+#         table of contents was scraped in as if it were one responsum.
+#         Detected two ways: the `unit` field literally reads תוכן
+#         העניינים/הקדמה/מבוא/פתיחה (361 rows, matches the audit); OR
+#         `book_name` itself carries that label for a few multi-volume
+#         works where `unit` uses an ordinary chapter marker instead (28
+#         more rows, found in a follow-up review; confirmed by word length
+#         running into the tens of thousands vs. a ~650-word norm).
+#   (iii) 12 named Geonic-era works that are not responsa at all --
+#         halakhic codes, legal-document/pledge/loan/oath treatises, and a
+#         later commentary -- attributed to Geonic authors (Rav Hai Gaon,
+#         Yehudai Gaon, Shimon Kayyara) whose actual responsa are also in
+#         the corpus under separate titles. Confined to the Geonim file;
+#         the audit found the broader Bar-Ilan "Geonim" section mixes
+#         genuine responsa with the wider surviving Geonic literature in a
+#         way the Rishonim/Acharonim sections don't.
+#   (iv)  Sefer Nachalat Shivah's shtarot (legal-document-template)
+#         section -- distinct from that work's own responsa section
+#         ("ספר נחלת שבעה תשובות", kept), which the source catalogs
+#         separately. Unlike (v) below, these are not abbreviated
+#         responsa in any sense -- they are contract/deed templates with
+#         no question-and-answer content at all.
+#   (v)   Metadata correction, not an exclusion: "שו"ת מהר"ש לבית הלוי"
+#         (137 rows) is R. Solomon b. Isaac ha-Levi of Salonika,
+#         1581-1633, not an 11th-century Frenchman -- see manual_fill /
+#         manual_death_fill above. Applied automatically upstream; listed
+#         here because it was part of the same audit and materially
+#         changes which period bin these 137 rows fall into.
+#
+# NOT excluded, after discussion (kept in the primary sample):
+#   - She'iltot de-Rav Achai (172 rows) and Seder Rav Amram Gaon (43
+#     rows): both have a genuine question-and-answer or responsa-adjacent
+#     dimension, and the genre line is debatable rather than clear. Kept
+#     in the primary sample; a co-author suggested testing their
+#     exclusion as a separate sensitivity analysis (not implemented here).
+#   - Piskei Maharik (309 rows, abbreviated rulings, median 56 words) and
+#     Terumat HaDeshen's Pesakim U-Ktavim (267 rows, median 137 words):
+#     both raise a measurement-validity question (do these represent the
+#     length of the responsum itself?) rather than a genre-exclusion
+#     question, and the team decided to keep them in the primary sample.
+#     Piskei Maharik's inclusion has no effect on any Geonim/Rishonim
+#     period comparison (its rows date to 1450-1480) but does affect any
+#     analysis of responsum length in that specific window -- worth
+#     revisiting if that window becomes analytically important.
 # ---------------------------------------------------------------------------
 df["word_length"] = pd.to_numeric(df["word_length"], errors="coerce")
-df_filtered = df[~df["book_name"].str.contains("הערות|הגהות", na=False)].copy()
+df["book_name"] = df["book_name"].astype(str)
+
+# (i) citations/footnotes
+mask_notes_glosses = df["book_name"].str.contains("הערות|הגהות", na=False)
+
+# (ii) front matter / table of contents
+mask_front_matter_unit = df["order_category"] == "front_matter"
+TOC_BOOK_NAMES = [
+    "תשובות והנהגות תוכן העניינים",
+    "קובץ תשובות הרב אלישיב תוכן העניינים",
+    "דובב מישרים הקדמה ותוכן העניינים",
+    "ספר נחלת שבעה תוכן העניינים",
+    'האדמו"ר הזקן תוכן עניינים',
+    "חזון נחום תוכן עניינים",
+    "ספר נחלת שבעה הקדמה",
+]
+mask_toc_book_name = df["book_name"].isin(TOC_BOOK_NAMES)
+mask_front_matter = mask_front_matter_unit | mask_toc_book_name
+
+# (iii) 12 named Geonic-era non-responsa works
+GEONIM_NON_RESPONSA_WORKS = [
+    # (book_name, expected row count)
+    ("ספר הלכות גדולות", 98),
+    ("ספר המקח והממכר לרב האי גאון", 61),
+    ("ספר המקח והממכר לרב האי גאון עמק השער", 50),
+    ("ספר החילוקים בין בני מזרח ומערב", 55),
+    ("ספר השטרות לרב האי גאון", 35),
+    ("משפטי שבועות לרב האי גאון", 30),
+    ("הלכות פסוקות", 25),
+    ("ספר הלכות קצובות", 24),
+    ("ספר המשכון לרב האי גאון", 1),
+    ("ספר המשכון לרב האי גאון עמק השער", 1),
+    ("משפטי התנאים לרב האי גאון", 1),
+    ("משפטי הלואות לרב האי גאון", 1),
+]
+mask_geonim_non_responsa = pd.Series(False, index=df.index)
+for title, expected in GEONIM_NON_RESPONSA_WORKS:
+    m = df["book_name"] == title
+    n = int(m.sum())
+    assert n == expected, f"Row count drifted for {title!r}: expected {expected}, found {n}."
+    mask_geonim_non_responsa |= m
+
+# (iv) Nachalat Shivah's shtarot (document-template) section
+mask_shtarot = df["book_name"] == "ספר נחלת שבעה שטרות"
+assert int(mask_shtarot.sum()) == 49, "Row count drifted for ספר נחלת שבעה שטרות."
+
+mask_excluded = (
+    mask_notes_glosses | mask_front_matter | mask_geonim_non_responsa | mask_shtarot
+)
+df_filtered = df[~mask_excluded].copy()
 
 # ---------------------------------------------------------------------------
 # 5. Assign a geographic region from country
@@ -423,6 +550,10 @@ import os
 os.makedirs(OUT, exist_ok=True)
 df_filtered.to_csv(f"{OUT}/bi_plus_geonim.csv", index=False)
 print(f"Wrote {OUT}/bi_plus_geonim.csv  ({len(df_filtered):,} rows)")
+print(f"  excluded as citations/footnotes (book_name note/gloss):    {int(mask_notes_glosses.sum()):>6,}")
+print(f"  excluded as front matter / table of contents:              {int(mask_front_matter.sum()):>6,}")
+print(f"  excluded as named Geonic-era non-responsa works (12):      {int(mask_geonim_non_responsa.sum()):>6,}")
+print(f"  excluded as Nachalat Shivah shtarot (document templates):  {int(mask_shtarot.sum()):>6,}")
 print("Note: this file still includes observations with word_length <= 10")
 print("(short citations/footnotes not yet excluded -- see 02_summary_statistics.py")
 print("and the paper's Section III.A, 'Excluding Non-Responsa').")

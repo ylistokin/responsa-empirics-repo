@@ -25,23 +25,25 @@ before anything downstream, since it produces `data/processed/bi_plus_geonim.csv
   median responsa per author, average word length, the share of responsa from
   the Geonic/Rishonim/Acharonim periods (by author birth year, split at 1480),
   and the share of responsa from each of the 8 regions. Excludes citations and
-  footnotes (word_length <= 10) per the paper's Section III.A. Output saved to
-  `data/processed/table1.csv`.
+  footnotes (word_length <= 10) per the paper's Section III.A — the same
+  word_length>=11 sample is used by every figure and table below. Output
+  saved to `data/processed/table1.csv`.
 - [x] **Figure 1** — Responsa Density and Smoothed Median and Mean Word-Length
   Over Time. `03_figure1_density_and_length.{py,ipynb}`. Uses `interpolated_year`
   (see Notes below) with a 1500-nearest-neighbor smoothing window computed on
-  the full word_length distribution (no outlier trimming) for both the median
-  and mean curves. Reference lines at word length 250 and year 1492. Output
-  saved to `figures/figure1.png`.
+  the word_length>=11 sample (no outlier trimming beyond that) for both the
+  median and mean curves. Reference lines at word length 250 and year 1492.
+  Output saved to `figures/figure1.png`.
 - [x] **Randomization analysis of the 1481-1505 gap** —
   `04_randomization_analysis_1480_1505.{py,ipynb}` (the window tested is
   1481-1505, a true 25-calendar-year span). Tests whether the 25-year
   paucity of responsa in 1481-1505 is plausible chance variation, using
-  `interpolated_year` over the sample period 1250-1650. Four comparisons:
+  `interpolated_year` over the sample period 1250-1650 (word_length>=11
+  sample). Four comparisons:
   (0) a simple, assumption-free benchmark — 1250-1650 tiles into exactly
   16 non-overlapping 25-year spans, so their mean is exactly N/16 responsa
-  per span; the observed 1481-1505 count (152) is 9.4% of that
-  period-wide average (1618.1);
+  per span; the observed 1481-1505 count (151) is 9.6% of that
+  period-wide average (1568.1);
   (1) a fixed-window test assuming responsa are produced at a uniform rate
   (Monte Carlo simulation cross-checked against the exact Binomial and a
   Normal approximation); (2) a "look-elsewhere corrected" version of the
@@ -80,8 +82,8 @@ before anything downstream, since it produces `data/processed/bi_plus_geonim.csv
   West Asia (ex Israel), Iberia), since the Geonim dating rule (see
   Notes) brings part of the "תשובות הגאונים" anthology into the 1000-1350
   window. Results saved to `data/processed/table2_region_regression.csv`
-  (N = 12,144) and `data/processed/table3_region_regression.csv`
-  (N = 18,788); formatted versions ready to paste into the paper are in
+  (N = 12,000) and `data/processed/table3_region_regression.csv`
+  (N = 18,823); formatted versions ready to paste into the paper are in
   `Table2_Rishonim_Region_Regression.docx` and
   `Table3_Acharonim_Region_Regression.docx`.
 - [x] **Robustness check on Table 2** — coarser time and region resolution.
@@ -95,10 +97,49 @@ before anything downstream, since it produces `data/processed/bi_plus_geonim.csv
   clustered by author. Results saved to
   `data/processed/table2_robustness_century_region_groups.csv`. The
   Ashkenaz vs. Sepharad+North Africa difference is not statistically
-  significant (+33.85, SE 84.59).
+  significant (-19.88, SE 45.10).
 
 ## Notes
 
+- **Corpus cleaning** (`01_build_dataset.py`, Section 4): beyond the
+  existing citation/footnote exclusion (book_name containing הערות/הגהות)
+  and the word_length>=11 sample cutoff used by every downstream script,
+  the dataset excludes three further kinds of non-responsa observation,
+  and corrects one metadata error, following a full-corpus audit:
+    - **Front matter / tables of contents** (389 rows): rows where an
+      entire preface or table of contents was scraped in as if it were a
+      single responsum, identified either by the `unit` field (reads
+      תוכן העניינים/הקדמה/מבוא/פתיחה) or, for a few multi-volume works,
+      by `book_name` itself carrying that label. Corpus-wide, not
+      Geonic-specific.
+    - **12 named Geonic-era works that are not responsa** (374 rows):
+      halakhic codes, legal-document/pledge/loan/oath treatises, and a
+      later commentary (Halachot Gedolot, Halachot Pesukot, Sefer
+      Ha-Mekach VeHamemekar and its Emek HaSha'ar commentary, Sefer
+      HaChilukim, Sefer HaShtarot, Mishpetei Shevuot, Sefer Halachot
+      Ketzuvot, Sefer HaMashkon and its commentary, Mishpetei HaTenaim,
+      Mishpetei Halva'ot) attributed to Geonic authors (Rav Hai Gaon,
+      Yehudai Gaon, Shimon Kayyara) whose actual responsa are in the
+      corpus under separate titles.
+    - **Sefer Nachalat Shivah's shtarot section** (49 rows): legal-
+      document templates, distinct from that work's own responsa section
+      (kept).
+    - **Metadata correction**: "שו"ת מהר"ש לבית הלוי" (137 rows) was
+      recorded as an 11th-century Frenchman (birth_year=1020, France) in
+      the original hand-collected fill; corrected to R. Solomon b. Isaac
+      ha-Levi of Salonika (1581-1633), per the catalog entry at
+      HebrewBooks.org. This moves the 137 rows from the 1001-1200 bin
+      into the early-modern period.
+  Two genre-adjacent candidates were reviewed and deliberately kept in
+  the primary sample: She'iltot de-Rav Achai and Seder Rav Amram Gaon
+  (both have a genuine question-and-answer dimension, and the genre line
+  is debatable rather than clear); and Piskei Maharik and Terumat
+  HaDeshen's Pesakim U-Ktavim (abbreviated rulings rather than full
+  responsum text, which is a measurement-validity question distinct from
+  genre — Piskei Maharik in particular is very short, median 56 words,
+  and its inclusion is worth revisiting for any analysis focused
+  specifically on responsum length around 1450-1480, the years its rows
+  fall in).
 - Geonic-era authors (from `geonim_len_stats.xlsx`) have no `country`
   recorded, so `01_build_dataset.py` maps them to "West Asia (ex Israel)"
   (the Geonim were centered in Babylonia, roughly modern Iraq).

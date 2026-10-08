@@ -10,8 +10,11 @@ chaining/sequencing across volumes by the same author).
 
 Both the smoothed median and the smoothed mean use the same 1500-nearest-
 neighbor window (in interpolated_year) at each point on the plotting grid,
-computed directly on the full word_length distribution -- no outlier
-trimming.
+computed on the same "responsa sample" as every other figure/table in the
+paper: word_length >= 11 (Section III.A, "Excluding Non-Responsa"). An
+earlier version of this script omitted that filter, so citations/
+footnotes (word_length <= 10) were pulling the smoothed curves down --
+flagged in the corpus audit and corrected here.
 
 Run 01_build_dataset.py first:
     python scripts/01_build_dataset.py
@@ -28,6 +31,9 @@ K = 1500  # nearest-neighbor window for both smoothed median and mean
 
 df = pd.read_csv("data/processed/bi_plus_geonim.csv", low_memory=False)
 df["word_length"] = pd.to_numeric(df["word_length"], errors="coerce")
+
+# Same "responsa sample" used throughout the paper: word_length >= 11
+df = df[df["word_length"] >= 11].copy()
 df = df.dropna(subset=["interpolated_year", "word_length"])
 
 years = df["interpolated_year"].values
@@ -50,7 +56,7 @@ plt.plot(grid_years, mean_smoothed, color="darkorange", linewidth=2,
           label=f"Smoothed Mean ({K} Nearest Neighbors)")
 plt.axhline(250, color="gray", linestyle="--", linewidth=1.5, label="Word Length = 250")
 plt.axvline(1492, color="green", linestyle="--", linewidth=1.3, label="late 15th century gap")
-plt.ylim(0, 3000)
+plt.ylim(0, 2500)
 plt.xlabel("Estimated Year of Responsum")
 plt.ylabel("Word Length")
 plt.title("Figure 1: Responsa Density and Smoothed Median and Mean Word-Length Over Time")

@@ -1,22 +1,37 @@
 """
-Randomization analysis: how likely is the 1480-1505 paucity of responsa
+Randomization analysis: how likely is the 1481-1505 paucity of responsa
 under a random (uniform) null model?
 
 Question: over the sample period 1250-1650, is it surprising -- if
 responsa were simply produced/dated at a constant average rate across
 that whole period -- to see as few responsa as we actually observe in
-the 25-year window 1480-1505?
+the 25-year window 1481-1505 (a true 25-calendar-year span: 1481, 1482,
+..., 1505)?
 
 Data: `interpolated_year` from data/processed/bi_plus_geonim.csv, built
 by 01_build_dataset.py (first responsum in a volume -> birth+30, last ->
 death, each volume interpolated independently; see that script's
-docstring for the full rule).
+docstring for the full rule). Uses the same "responsa sample" as every
+other figure/table in the paper: word_length >= 11 (Section III.A,
+"Excluding Non-Responsa"), so citations/footnotes aren't counted as
+responsa when assessing how sparse 1481-1505 is.
 
-Three tests are reported. 1480-1505 was picked BECAUSE it looks sparse in
-the real data, so testing only that one fixed window overstates
+Four comparisons are reported. 1481-1505 was picked BECAUSE it looks sparse
+in the real data, so testing only that one fixed window overstates
 significance (the "look-elsewhere" / multiple-comparisons problem) --
 Tests 1-2 use a uniform-random null and correct for that; Test 3 sidesteps
 the uniformity assumption entirely by comparing against the data itself.
+A preliminary, even simpler comparison (0, below) is reported first: the
+observed count against the plain period-wide average responsa count per
+25-year span, with no simulation or tiling choices involved at all.
+
+0. SIMPLE PERIOD-WIDE AVERAGE (no assumptions, no simulation)
+   1250-1650 is exactly 400 years, i.e. exactly 16 non-overlapping 25-year
+   spans. Since those 16 spans partition the whole sample period with no
+   remainder, their counts must sum to N -- so their mean is *exactly*
+   N/16, an arithmetic fact rather than an estimate. This is the plainest
+   possible yardstick: how does the observed 1481-1505 count compare to
+   the average 25-year span anywhere in 1250-1650?
 
 1. FIXED-WINDOW TEST (assumes uniformity)
    Null: each of the N responsa dated in 1250-1650 is an independent
@@ -69,7 +84,10 @@ import matplotlib.pyplot as plt
 # Configuration
 # ---------------------------------------------------------------------------
 PERIOD_START, PERIOD_END = 1250, 1650     # sample period used for the test
-WINDOW_START, WINDOW_END = 1480, 1505     # the window of interest ("the gap")
+WINDOW_START, WINDOW_END = 1481, 1506     # the window of interest ("the gap"):
+                                           # calendar years 1481-1505 inclusive
+                                           # (half-open [1481, 1506) so the
+                                           # window covers the whole of 1505)
 WINDOW_LEN = WINDOW_END - WINDOW_START    # 25 years
 N_SIMS = 50_000
 SEED = 20260907  # fixed seed for reproducibility
@@ -80,6 +98,10 @@ rng = np.random.default_rng(SEED)
 # 1. Load data, restrict to the sample period
 # ---------------------------------------------------------------------------
 df = pd.read_csv("data/processed/bi_plus_geonim.csv", low_memory=False)
+df["word_length"] = pd.to_numeric(df["word_length"], errors="coerce")
+
+# Same "responsa sample" used throughout the paper: word_length >= 11
+df = df[df["word_length"] >= 11].copy()
 df = df.dropna(subset=["interpolated_year"])
 
 period = df[(df["interpolated_year"] >= PERIOD_START) & (df["interpolated_year"] < PERIOD_END)]
@@ -92,6 +114,24 @@ print(f"Sample period: {PERIOD_START}-{PERIOD_END}  (N = {N:,} responsa)")
 print(f"Window of interest: {WINDOW_START}-{WINDOW_END}  (observed count = {observed_count})")
 p_window = WINDOW_LEN / (PERIOD_END - PERIOD_START)
 print(f"Expected count under uniform null: N * ({WINDOW_LEN}/{PERIOD_END - PERIOD_START}) = {N * p_window:.1f}")
+
+# ---------------------------------------------------------------------------
+# 0. Simple period-wide average: N split evenly across the exact number of
+#    non-overlapping 25-year spans that tile 1250-1650 with no remainder.
+# ---------------------------------------------------------------------------
+n_period_tiles = (PERIOD_END - PERIOD_START) // WINDOW_LEN
+assert (PERIOD_END - PERIOD_START) % WINDOW_LEN == 0, \
+    "sample period does not divide evenly into WINDOW_LEN-year spans"
+period_wide_mean = N / n_period_tiles
+pct_of_mean = 100 * observed_count / period_wide_mean
+
+print(f"\n--- Test 0: simple period-wide average (no assumptions) ---")
+print(f"  {PERIOD_START}-{PERIOD_END} is exactly {n_period_tiles} non-overlapping "
+      f"{WINDOW_LEN}-year spans; their counts must sum to N = {N:,},")
+print(f"  so their mean is exactly N/{n_period_tiles} = {period_wide_mean:.1f} responsa per {WINDOW_LEN}-year span.")
+print(f"  Observed {WINDOW_START}-{WINDOW_END} count ({observed_count}) is "
+      f"{pct_of_mean:.1f}% of that period-wide average "
+      f"({period_wide_mean:.1f}) -- i.e. {period_wide_mean / observed_count:.1f}x fewer than the typical span.")
 
 
 def window_counts(sorted_arr, starts, length):
@@ -217,6 +257,9 @@ results = pd.DataFrame([{
     "window_start": WINDOW_START, "window_end": WINDOW_END,
     "n_responsa_in_period": N,
     "observed_count_in_window": observed_count,
+    "n_period_wide_tiles": n_period_tiles,
+    "period_wide_mean_count_per_window": period_wide_mean,
+    "observed_pct_of_period_wide_mean": pct_of_mean,
     "expected_count_under_uniform": N * p_window,
     "sparsest_window_start_actual": actual_min_window,
     "sparsest_window_count_actual": actual_min,
@@ -243,6 +286,8 @@ fig, axes = plt.subplots(1, 3, figsize=(17, 5))
 axes[0].hist(sim_fixed_counts, bins=40, color="steelblue", alpha=0.8)
 axes[0].axvline(observed_count, color="darkred", linewidth=2,
                  label=f"Observed ({observed_count})")
+axes[0].axvline(period_wide_mean, color="darkgreen", linewidth=2, linestyle="--",
+                 label=f"Period-wide mean ({period_wide_mean:.1f})")
 axes[0].set_title(f"Simulated count in fixed window\n{WINDOW_START}-{WINDOW_END} (N_sims={N_SIMS:,})")
 axes[0].set_xlabel("Number of responsa in window")
 axes[0].set_ylabel("Number of simulations")
@@ -258,10 +303,13 @@ axes[1].legend()
 
 bar_colors = ["darkred" if s == WINDOW_START else "steelblue" for s in tile_starts]
 axes[2].bar([f"{s}" for s in tile_starts], tile_counts, color=bar_colors)
+axes[2].axhline(period_wide_mean, color="darkgreen", linewidth=2, linestyle="--",
+                 label=f"Period-wide mean ({period_wide_mean:.1f})")
 axes[2].set_title(f"Observed count in EVERY non-overlapping\n25-yr tile, {PERIOD_START}-{PERIOD_END}")
 axes[2].set_xlabel("Tile start year")
 axes[2].set_ylabel("Number of responsa")
 axes[2].tick_params(axis="x", rotation=90)
+axes[2].legend()
 
 plt.tight_layout()
 os.makedirs("figures", exist_ok=True)
