@@ -494,8 +494,16 @@ for title, expected in GEONIM_NON_RESPONSA_WORKS:
 mask_shtarot = df["book_name"] == "ספר נחלת שבעה שטרות"
 assert int(mask_shtarot.sum()) == 49, "Row count drifted for ספר נחלת שבעה שטרות."
 
+# (vi) She'iltot de-Rav Achai (172 rows) and Seder Rav Amram Gaon (43 rows): added after the Oct 8 rebuild
+#      (coauthor decision, Nov 2026) -- halakhic-homiletic / liturgical works, not responsa. Previously kept.
+mask_sheiltot_amram = (
+    df["author_name"].isin(["ר' אחאי משבחא", "ר' עמרם גאון"])
+    & df["book_name"].str.contains("שאילתות דרב אחאי|סדר רב עמרם", na=False)
+)
+assert int(mask_sheiltot_amram.sum()) == 215, "Row count drifted for She'iltot / Seder Rav Amram."
+
 mask_excluded = (
-    mask_notes_glosses | mask_front_matter | mask_geonim_non_responsa | mask_shtarot
+    mask_notes_glosses | mask_front_matter | mask_geonim_non_responsa | mask_shtarot | mask_sheiltot_amram
 )
 df_filtered = df[~mask_excluded].copy()
 
@@ -554,6 +562,7 @@ print(f"  excluded as citations/footnotes (book_name note/gloss):    {int(mask_n
 print(f"  excluded as front matter / table of contents:              {int(mask_front_matter.sum()):>6,}")
 print(f"  excluded as named Geonic-era non-responsa works (12):      {int(mask_geonim_non_responsa.sum()):>6,}")
 print(f"  excluded as Nachalat Shivah shtarot (document templates):  {int(mask_shtarot.sum()):>6,}")
+print(f"  excluded as She'iltot de-Rav Achai + Seder Rav Amram:      {int(mask_sheiltot_amram.sum()):>6,}")
 print("Note: this file still includes observations with word_length <= 10")
 print("(short citations/footnotes not yet excluded -- see 02_summary_statistics.py")
 print("and the paper's Section III.A, 'Excluding Non-Responsa').")
